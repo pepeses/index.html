@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Math Challenge: Feria de Matemáticas</title>
+<style>
+  :root {
+    --bg-dark: #00050a;
+    --gold: #ffd700;
+    --blue-neon: #00d4ff;
+    --deep-blue: #001d3d;
+    --correct: #28a745;
+    --wrong: #dc3545;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'Segoe UI', sans-serif;
+    background: radial-gradient(circle, #021a3a 0%, var(--bg-dark) 100%);
+    color: white;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+  }
+
+  /* --- MENÚ DE INICIO --- */
+  #registration-menu {
+    background: rgba(0, 29, 61, 0.95);
+    padding: 40px;
+    border: 3px solid var(--blue-neon);
+    border-radius: 20px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0, 212, 255, 0.5);
+    max-width: 450px;
+    width: 90%;
+  }
+
+  .input-group { margin: 20px 0; }
+  input, select {
+    padding: 12px;
+    font-size: 1.1rem;
+    border-radius: 5px;
+    border: 2px solid var(--blue-neon);
+    background: #000;
+    color: white;
+    width: 90%;
+    text-align: center;
+  }
+
+  label { display: block; margin-bottom: 8px; color: var(--gold); font-weight: bold; text-transform: uppercase; }
+
+  .btn-start {
+    background: var(--gold);
+    color: black;
+    padding: 15px 50px;
+    font-size: 1.4rem;
+    font-weight: bold;
+    border: none;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: 0.3s;
+    text-transform: uppercase;
+  }
+
+  /* --- JUEGO --- */
+  #game-container { display: none; width: 100%; height: 100vh; flex-direction: column; }
+
+  .turn-header { display: flex; justify-content: space-between; align-items: center; padding: 30px 50px; background: rgba(255,255,255,0.05); }
+  .player-tag { font-size: 1.8rem; font-weight: bold; text-transform: uppercase; color: var(--blue-neon); }
+
+  .lifeline-btn {
+    background: transparent; border: 2px solid var(--gold); color: var(--gold);
+    padding: 8px 20px; border-radius: 20px; cursor: pointer; font-weight: bold;
+  }
+  .lifeline-btn:disabled { border-color: #444; color: #444; text-decoration: line-through; }
+
+  .main-layout { display: flex; flex: 1; padding: 20px; gap: 30px; align-items: center; }
+  .game-area { flex: 3; display: flex; flex-direction: column; align-items: center; }
+
+  .question-box {
+    width: 100%; background: var(--deep-blue); border: 2px solid white; padding: 30px;
+    text-align: center; font-size: 2rem; clip-path: polygon(5% 0%, 95% 0%, 100% 50%, 95% 100%, 5% 100%, 0% 50%);
+    margin-bottom: 30px;
+  }
+
+  .answers-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px 60px; width: 100%; }
+  .answer-btn {
+    background: var(--deep-blue); border: 1px solid var(--blue-neon); padding: 20px 40px;
+    cursor: pointer; font-size: 1.4rem; color: white;
+    clip-path: polygon(5% 0%, 95% 0%, 100% 50%, 95% 100%, 5% 100%, 0% 50%);
+    transition: 0.2s;
+  }
+  
+  .hidden-ans { visibility: hidden; pointer-events: none; }
+
+  .money-sidebar { flex: 0.7; background: rgba(0,0,0,0.85); padding: 10px; display: flex; flex-direction: column-reverse; }
+  .money-step { display: flex; justify-content: space-between; padding: 8px 15px; color: var(--gold); font-size: 1rem; }
+  .current-step { background: orange; color: black; font-weight: bold; border-radius: 4px; }
+
+  /* --- PANTALLA FINAL --- */
+  #end-screen { 
+    display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: rgba(0,0,0,0.95); flex-direction: column; justify-content: center; align-items: center; z-index: 100;
+  }
+
+  .selected { background: orange !important; color: black; animation: tension 0.5s infinite; }
+  .correct { background: var(--correct) !important; animation: flash 0.3s infinite; }
+  .wrong { background: var(--wrong) !important; }
+
+  @keyframes tension { 50% { opacity: 0.8; transform: scale(0.98); } }
+  @keyframes flash { 50% { opacity: 0.6; } }
+</style>
+</head>
+<body>
+
+<div id="registration-menu">
+  <h1 style="color: var(--gold);">MATH CHALLENGE</h1>
+  <div class="input-group">
+    <label>PARTICIPANTE</label>
+    <input type="text" id="player-name" placeholder="Tu nombre...">
+  </div>
+  <div class="input-group">
+    <label>NIVEL ESCOLAR</label>
+    <select id="level-select">
+      <option value="primaria_baja">Primaria Baja (1º-3º)</option>
+      <option value="primaria_alta">Primaria Alta (4º-6º)</option>
+      <option value="secundaria">Secundaria (1º-3º)</option>
+    </select>
+  </div>
+  <button class="btn-start" onclick="initGame()">COMENZAR DESAFÍO</button>
+</div>
+
+<div id="game-container">
+  <div class="turn-header">
+    <div>
+      <div id="display-name" class="player-tag">---</div>
+      <button id="wildcard-btn" class="lifeline-btn" style="margin-top:5px;" onclick="use5050()">COMODÍN 50:50</button>
+    </div>
+    <div style="text-align: right;">
+      <div id="level-tag" style="color: var(--gold); font-size: 1rem; font-weight: bold;"></div>
+      <div style="font-size: 1.4rem;">PREGUNTA <span id="q-num">1</span>/10</div>
+    </div>
+  </div>
+  <div class="main-layout">
+    <div class="game-area">
+      <div class="question-box" id="q-text"></div>
+      <div class="answers-grid" id="ans-grid"></div>
+    </div>
+    <div class="money-sidebar" id="money-ladder"></div>
+  </div>
+</div>
+
+<div id="end-screen">
+  <h1 id="end-title" style="color: var(--gold); font-size: 3.5rem;"></h1>
+  <p id="end-msg" style="font-size: 1.8rem; margin-bottom: 40px;"></p>
+  <button class="btn-start" onclick="restart()">NUEVA PARTIDA</button>
+</div>
+
+<script>
+const allQuestions = {
+  primaria_baja: [
+    { q: "¿Cuánto es 8 + 5?", a: ["13", "12", "14", "11"], c: 0 },
+    { q: "¿Qué número sigue: 2, 4, 6, 8, ...?", a: ["9", "10", "11", "12"], c: 1 },
+    { q: "¿Cuántos lados tiene un cuadrado?", a: ["3", "5", "4", "6"], c: 2 },
+    { q: "Tengo 5 manzanas y me como 2, ¿cuántas quedan?", a: ["3", "2", "4", "1"], c: 0 },
+    { q: "¿Qué número es mayor?", a: ["15", "51", "50", "49"], c: 1 },
+    { q: "¿Cuánto es 10 + 10?", a: ["100", "20", "30", "15"], c: 1 },
+    { q: "¿Cómo se llama esta figura: △?", a: ["Círculo", "Cuadrado", "Triángulo", "Rectángulo"], c: 2 },
+    { q: "¿Cuál es el doble de 6?", a: ["12", "10", "14", "8"], c: 0 },
+    { q: "¿Cuántos meses tiene un año?", a: ["10", "12", "11", "13"], c: 1 },
+    { q: "¿Cuánto es 5 - 5?", a: ["1", "10", "0", "5"], c: 2 },
+    { q: "Si tengo 3 monedas de $1, ¿cuánto dinero tengo?", a: ["$2", "$4", "$3", "$5"], c: 2 },
+    { q: "¿Qué número va antes del 20?", a: ["21", "19", "18", "22"], c: 1 },
+    { q: "¿Cuántas orejas tienen 2 gatos?", a: ["2", "6", "4", "8"], c: 2 },
+    { q: "¿Cuál es el número 'Siete'?", a: ["6", "8", "7", "9"], c: 2 },
+    { q: "Tengo 4 globos y se revientan 2, ¿quedan?", a: ["1", "2", "3", "0"], c: 1 },
+    { q: "¿Cuánto es 2 + 2 + 2?", a: ["4", "8", "6", "5"], c: 2 },
+    { q: "¿Cuál es la forma de una pizza?", a: ["Cuadrada", "Triangular", "Circular", "Rectangular"], c: 2 },
+    { q: "¿Qué número es más pequeño?", a: ["5", "2", "8", "9"], c: 1 },
+    { q: "¿Cómo se escribe diez?", a: ["10", "01", "11", "100"], c: 0 },
+    { q: "¿Cuánto es 3 x 2?", a: ["5", "6", "9", "4"], c: 1 }
+  ],
+  primaria_alta: [
+    { q: "¿Cuánto es 12 x 4?", a: ["44", "48", "52", "46"], c: 1 },
+    { q: "¿Cuál es el área de un cuadrado de lado 3cm?", a: ["6cm²", "9cm²", "12cm²", "3cm²"], c: 1 },
+    { q: "¿Cuántos grados tiene un ángulo recto?", a: ["45°", "180°", "90°", "360°"], c: 2 },
+    { q: "¿Qué fracción es igual a medio litro?", a: ["1/4", "1/2", "3/4", "1/3"], c: 1 },
+    { q: "¿Cuánto es 100 ÷ 5?", a: ["25", "20", "15", "10"], c: 1 },
+    { q: "¿Cuál es el perímetro de un triángulo de lados 3, 4 y 5?", a: ["12", "10", "15", "9"], c: 0 },
+    { q: "¿Cuántos metros hay en 1 kilómetro?", a: ["100m", "1000m", "500m", "10m"], c: 1 },
+    { q: "¿Qué número es el 25% de 100?", a: ["50", "25", "75", "10"], c: 1 },
+    { q: "Escribe 15 en números romanos", a: ["XII", "XV", "XX", "VX"], c: 1 },
+    { q: "¿Cuál es el triple de 20?", a: ["40", "60", "80", "50"], c: 1 },
+    { q: "¿Cuánto es 1.5 + 1.5?", a: ["2.5", "3.0", "3.5", "4.0"], c: 1 },
+    { q: "¿Qué número sigue: 1, 3, 5, 7, ...?", a: ["8", "9", "10", "11"], c: 1 },
+    { q: "¿Cuántas caras tiene un cubo?", a: ["4", "8", "6", "12"], c: 2 },
+    { q: "¿Cuánto es 7 x 8?", a: ["54", "56", "64", "49"], c: 1 },
+    { q: "¿Cómo se llama el triángulo con 2 lados iguales?", a: ["Equilátero", "Isósceles", "Escaleno", "Recto"], c: 1 },
+    { q: "¿Cuál es la mitad de 150?", a: ["50", "75", "80", "65"], c: 1 },
+    { q: "¿Cuántos segundos tiene un minuto?", a: ["30", "60", "90", "100"], c: 1 },
+    { q: "¿Cuál es el resultado de 9 x 9?", a: ["72", "81", "90", "82"], c: 1 },
+    { q: "Si x + 5 = 12, ¿cuánto vale x?", a: ["5", "7", "8", "6"], c: 1 },
+    { q: "¿Qué es mayor: 0.5 o 0.25?", a: ["0.25", "Iguales", "0.5", "Ninguno"], c: 2 }
+  ],
+  secundaria: [
+    { q: "Resuelve: 2x = 20", a: ["2", "10", "5", "20"], c: 1 },
+    { q: "¿Cuál es la raíz cuadrada de 64?", a: ["6", "7", "8", "9"], c: 2 },
+    { q: "¿Cuánto suman los ángulos de un triángulo?", a: ["180°", "360°", "90°", "270°"], c: 0 },
+    { q: "¿Cuál es el valor de 3 al cubo (3³)?", a: ["9", "27", "18", "30"], c: 1 },
+    { q: "Teorema para triángulos rectángulos:", a: ["Thales", "Newton", "Pitágoras", "Pascal"], c: 2 },
+    { q: "Si el radio de un círculo es 5, ¿su diámetro es?", a: ["5", "15", "10", "25"], c: 2 },
+    { q: "¿Cuál es el resultado de (-5) + (-3)?", a: ["-2", "8", "-8", "2"], c: 2 },
+    { q: "¿Cuál es el área de un círculo de radio r?", a: ["2πr", "πr²", "πd", "r²"], c: 1 },
+    { q: "Resuelve: 3(x + 1) = 12", a: ["3", "4", "5", "2"], c: 0 },
+    { q: "Sucesión de Fibonacci: 1, 1, 2, 3, 5...", a: ["6", "8", "7", "9"], c: 1 },
+    { q: "¿A cuánto equivale π (Pi)?", a: ["3.16", "3.14", "3.12", "3.10"], c: 1 },
+    { q: "Un ángulo de 180° se llama:", a: ["Agudo", "Recto", "Llano", "Obtuso"], c: 2 },
+    { q: "¿Cuál es el 10% de 1500?", a: ["15", "150", "1.5", "1500"], c: 1 },
+    { q: "Pendiente en y = mx + b:", a: ["b", "x", "m", "y"], c: 2 },
+    { q: "Si a=2 y b=3, ¿cuánto es a² + b²?", a: ["13", "10", "5", "25"], c: 0 },
+    { q: "¿Cómo se llama un polígono de 5 lados?", a: ["Hexágono", "Octágono", "Pentágono", "Heptágono"], c: 2 },
+    { q: "¿Cuál es el valor absoluto de -10?", a: ["-10", "10", "0", "1"], c: 1 },
+    { q: "¿Cuántos milímetros hay en un metro?", a: ["100", "10", "1000", "500"], c: 2 },
+    { q: "Raíz cuadrada de 121:", a: ["10", "12", "11", "13"], c: 2 },
+    { q: "Probabilidad de sacar un 6 en un dado:", a: ["1/2", "1/6", "1/4", "1/3"], c: 1 }
+  ]
+};
+
+const prizes = ["$1K", "$5K", "$10K", "$25K", "$50K", "$100K", "$250K", "$500K", "$750K", "$1 MILLÓN"];
+let playerName = "", idx = 0, locked = false;
+let gameQuestions = [], usedWildcard = false;
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function initGame() {
+  const level = document.getElementById('level-select').value;
+  playerName = document.getElementById('player-name').value || "Invitado";
+  
+  let pool = shuffle([...allQuestions[level]]);
+  gameQuestions = pool.slice(0, 10);
+  
+  document.getElementById('display-name').innerText = playerName;
+  document.getElementById('level-tag').innerText = "MODO: " + level.replace('_', ' ').toUpperCase();
+  document.getElementById('registration-menu').style.display = 'none';
+  document.getElementById('game-container').style.display = 'flex';
+  
+  idx = 0; usedWildcard = false;
+  startQuestion();
+}
+
+function startQuestion() {
+  if (idx >= 10) {
+    return showEndScreen("¡FELICIDADES!", `¡Lo lograste, ${playerName}! Eres el nuevo millonario.`);
+  }
+
+  locked = false;
+  document.getElementById('wildcard-btn').disabled = usedWildcard;
+  renderMoney();
+
+  const q = gameQuestions[idx];
+  document.getElementById('q-text').innerText = q.q;
+  document.getElementById('q-num').innerText = idx + 1;
+  
+  const grid = document.getElementById('ans-grid');
+  grid.innerHTML = q.a.map((t, i) => `
+    <div class="answer-btn" id="ans-${i}" onclick="check(${i}, this)">
+      <span>${String.fromCharCode(65+i)}:</span> ${t}
+    </div>`).join('');
+}
+
+function use5050() {
+  if (locked || usedWildcard) return;
+  usedWildcard = true;
+  document.getElementById('wildcard-btn').disabled = true;
+  const correctIdx = gameQuestions[idx].c;
+  let incorrectos = [0,1,2,3].filter(i => i !== correctIdx);
+  shuffle(incorrectos);
+  incorrectos.slice(0, 2).forEach(i => document.getElementById(`ans-${i}`).classList.add('hidden-ans'));
+}
+
+function check(i, el) {
+  if (locked) return;
+  locked = true;
+  
+  // Paso 1: Seleccionar (Naranja)
+  el.classList.add('selected');
+
+  // Paso 2: Esperar 5 segundos de suspenso
+  setTimeout(() => {
+    if (i === gameQuestions[idx].c) {
+      // Correcto
+      el.classList.replace('selected', 'correct');
+      setTimeout(() => { 
+        idx++; 
+        startQuestion(); 
+      }, 1500);
+    } else {
+      // Incorrecto
+      el.classList.replace('selected', 'wrong');
+      document.getElementById(`ans-${gameQuestions[idx].c}`).classList.add('correct');
+      setTimeout(() => {
+        showEndScreen("¡OH NO!", `${playerName}, fallaste en la pregunta ${idx+1}.`);
+      }, 1500);
+    }
+  }, 5000); // <--- AQUÍ ESTÁN LOS 5 SEGUNDOS
+}
+
+function renderMoney() {
+  const ladder = document.getElementById('money-ladder');
+  ladder.innerHTML = prizes.map((p, i) => `
+    <div class="money-step ${i === idx ? 'current-step' : ''}">
+      <span>${i+1}</span> <span>${p}</span>
+    </div>`).join('');
+}
+
+function showEndScreen(title, msg) {
+  document.getElementById('end-title').innerText = title;
+  document.getElementById('end-msg').innerText = msg;
+  document.getElementById('end-screen').style.display = 'flex';
+}
+
+function restart() {
+  document.getElementById('end-screen').style.display = 'none';
+  document.getElementById('game-container').style.display = 'none';
+  document.getElementById('registration-menu').style.display = 'block';
+  document.getElementById('player-name').value = "";
+}
+</script>
+</body>
+</html>
